@@ -101,13 +101,7 @@ fn read_password(prompt: &str) -> Zeroizing<String> {
     pw
 }
 
-// In main(), after the banner, before setup_vault():
-if !path.exists() {
-    println!("  💡  New vault detected. If you haven't already, run the");
-    println!("      OS security audit to verify your system is hardened:");
-    println!("      python3 tools/audit/qrptonote_audit.py");
-    println!();
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Vault setup (load-or-create)
@@ -244,6 +238,14 @@ fn main() {
     }
 
     let path = PathBuf::from(&args[1]);
+
+    // In main(), after the banner, before setup_vault():
+    if !path.exists() {
+        println!("  💡  New vault detected. If you haven't already, run the");
+        println!("      OS security audit to verify your system is hardened:");
+        println!("      python3 tools/audit/qrptonote_audit.py");
+        println!();
+    }
 
     println!();
     println!("  ╔════════════════════════════════════════════════╗");
