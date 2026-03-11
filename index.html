@@ -115,6 +115,9 @@
     text-decoration: none;
     transition: box-shadow 0.2s, background 0.2s;
     clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
   }
   .nav-cta:hover {
     background: #7fffa0;
@@ -718,10 +721,13 @@
   <ul class="nav-links">
     <li><a href="#features">Features</a></li>
     <li><a href="#security">Security</a></li>
+    <li><a href="#keybindings">Keybindings</a></li>
     <li><a href="#install">Install</a></li>
-    <li><a href="#docs">Docs</a></li>
   </ul>
-  <a href="#install" class="nav-cta">Get Binary</a>
+  <a href="https://github.com/noveoko/qrpto-note" target="_blank" class="nav-cta">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub
+  </a>
 </nav>
 
 <!-- HERO -->
@@ -729,7 +735,7 @@
   <div class="hero-grid-bg"></div>
   <div class="hero-glow"></div>
 
-  <div class="hero-tag">// terminal-native · AES-256-GCM · Argon2id</div>
+  <div class="hero-tag">// terminal-native · AES-256-GCM · Argon2id · Rust 1.75+</div>
 
   <h1 class="hero-title">
     <span class="accent">Qrpto</span><span style="color:var(--text-dim)">:</span>note
@@ -741,7 +747,7 @@
   </p>
 
   <div class="hero-actions">
-    <a href="#install" class="btn-primary">↓ Download Binary</a>
+    <a href="https://github.com/noveoko/qrpto-note" target="_blank" class="btn-primary">↗ View on GitHub</a>
     <a href="#security" class="btn-ghost">How it works →</a>
   </div>
 
@@ -810,8 +816,8 @@
     <div class="feature-card">
       <div class="feature-icon">⧖</div>
       <div class="feature-title">Argon2id Key Derivation</div>
-      <div class="feature-desc">Your master key is never stored. It is derived fresh each session via Argon2id — the memory-hard KDF designed to make GPU and ASIC brute-force attacks prohibitively expensive.</div>
-      <div class="feature-tag">Argon2id · never persisted</div>
+      <div class="feature-desc">Your master key is never stored. Derived fresh each session via Argon2id with 19 456 KiB memory (fills L3 cache), 2 iterations, parallelism 1 — yielding a 32-byte AES-256 key. GPU/ASIC attacks gain no edge.</div>
+      <div class="feature-tag">19 MB memory-hard · never persisted</div>
     </div>
 
     <div class="feature-card">
@@ -838,8 +844,8 @@
     <div class="feature-card">
       <div class="feature-icon">◈</div>
       <div class="feature-title">SVT1 Binary Format</div>
-      <div class="feature-desc">A simple, auditable binary format with no external runtime dependencies. The entire application ships as a single self-contained binary compiled with Rust's release optimiser. Nothing hidden.</div>
-      <div class="feature-tag">SVT1 · single binary · Rust</div>
+      <div class="feature-desc">Magic bytes → 32-byte Argon2id salt → entry count → entries (12-byte nonce ‖ u32 ciphertext length ‖ N bytes ciphertext+tag). Simple, auditable, zero runtime dependencies. One self-contained Rust binary.</div>
+      <div class="feature-tag">SVT1 · single binary · Rust 1.75</div>
     </div>
   </div>
 </section>
@@ -853,8 +859,8 @@
     <div class="step">
       <div class="step-num">01</div>
       <div class="step-title">Open vault</div>
-      <div class="step-desc">You provide your password. Argon2id derives the master key fresh — high memory, high iteration cost. No key is ever written anywhere.</div>
-      <div class="step-code">Argon2id → master_key</div>
+      <div class="step-desc">You provide your password. Argon2id derives the 32-byte master key fresh — 19 456 KiB memory, 2 iterations, parallelism 1. No key is written anywhere. The 32-byte salt is stored in the vault header.</div>
+      <div class="step-code">Argon2id(19MB) → master_key[32]</div>
     </div>
 
     <div class="step">
@@ -955,33 +961,189 @@
   </div>
 </section>
 
+<!-- KEYBINDINGS -->
+<section class="section" id="keybindings" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="section-label">// key bindings</div>
+  <h2 class="section-title">Three modes. Full keyboard control.</h2>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1px;margin-top:56px;background:var(--border);border:1px solid var(--border);">
+
+    <div style="background:var(--bg);padding:32px 28px;">
+      <div style="font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:18px;">Locked mode <span style="color:var(--green);margin-left:8px;">████ all entries</span></div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);width:80px;">↑ / k</td>
+            <td style="color:var(--text-dim);">Move cursor up</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">↓ / j</td>
+            <td style="color:var(--text-dim);">Move cursor down</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">Space</td>
+            <td style="color:var(--green);font-weight:700;">Reveal entry → decrypt to buffer</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">n</td>
+            <td style="color:var(--text-dim);">Add new empty entry</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">d</td>
+            <td style="color:var(--red);">Delete focused entry</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">s</td>
+            <td style="color:var(--text-dim);">Save vault to disk</td>
+          </tr>
+          <tr>
+            <td style="padding:9px 0;color:var(--amber);">q</td>
+            <td style="color:var(--text-dim);">Quit</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:var(--bg);padding:32px 28px;">
+      <div style="font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:18px;">Revealed mode <span style="color:var(--green);margin-left:8px;">cleartext visible</span></div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);width:80px;">Enter</td>
+            <td style="color:var(--text-dim);">Enter edit mode</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">Esc</td>
+            <td style="color:var(--green);font-weight:700;">Lock → zeroize buffer</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">↑ / ↓</td>
+            <td style="color:var(--red);">Navigate — immediately zeroizes</td>
+          </tr>
+          <tr>
+            <td style="padding:9px 0;color:var(--amber);">s</td>
+            <td style="color:var(--text-dim);">Save vault</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:var(--bg);padding:32px 28px;">
+      <div style="font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:18px;">Edit mode <span style="color:var(--amber);margin-left:8px;">cleartext editable</span></div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);width:80px;">Esc</td>
+            <td style="color:var(--green);font-weight:700;">Save → re-encrypt → lock</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">↑ / ↓</td>
+            <td style="color:var(--red);">Discard edits, move, lock</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">← / →</td>
+            <td style="color:var(--text-dim);">Move cursor within line</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">Home/End</td>
+            <td style="color:var(--text-dim);">Jump to start / end</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:9px 0;color:var(--amber);">Backspace</td>
+            <td style="color:var(--text-dim);">Delete char before cursor</td>
+          </tr>
+          <tr>
+            <td style="padding:9px 0;color:var(--amber);">Delete</td>
+            <td style="color:var(--text-dim);">Delete char at cursor</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
 <!-- INSTALL -->
 <section class="install-section" id="install">
-  <div class="section-label" style="text-align:center">// installation</div>
+  <div class="section-label" style="text-align:center">// build & install</div>
   <h2 class="section-title" style="margin:0 auto;text-align:center">One binary. No runtime. No surprise.</h2>
 
-  <div>
-    <div class="install-box" id="installBox">
+  <div style="margin-top:40px;display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <div style="font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">// requires Rust 1.75+</div>
+
+    <div class="install-box">
       <span class="prompt">$</span>
-      <span class="cmd" id="installCmd">cargo install qrptonote</span>
+      <span class="cmd" id="installCmd">cargo build --release</span>
       <button class="copy-btn" id="copyBtn" onclick="copyInstall()">copy</button>
+    </div>
+
+    <div style="font-size:0.76rem;color:var(--text-dim);margin-top:8px;">
+      Binary: <span style="color:var(--amber);">./target/release/secure-vault</span>
     </div>
   </div>
 
-  <div class="install-platforms">
+  <div style="margin-top:36px;background:#060906;border:1px solid var(--border);display:inline-block;padding:20px 28px;text-align:left;font-size:0.78rem;line-height:2;">
+    <div><span style="color:var(--text-dim)"># Create a new vault</span></div>
+    <div><span style="color:var(--green-dim)">$</span> <span style="color:var(--green)">./secure-vault my-secrets.sv</span></div>
+    <div>&nbsp;</div>
+    <div><span style="color:var(--text-dim)"># Open an existing vault</span></div>
+    <div><span style="color:var(--green-dim)">$</span> <span style="color:var(--green)">./secure-vault my-secrets.sv</span></div>
+  </div>
+
+  <div class="install-platforms" style="margin-top:32px;">
     <div class="platform-badge">Linux x86_64</div>
     <div class="platform-badge">Linux ARM64</div>
     <div class="platform-badge">macOS ARM</div>
     <div class="platform-badge">macOS x86_64</div>
   </div>
 
-  <p style="margin-top:28px;font-size:0.76rem;color:var(--text-dim);max-width:480px;margin-left:auto;margin-right:auto;line-height:1.8;">
-    Requires Rust toolchain ≥ 1.75. Pre-built binaries available on the <a href="#" style="color:var(--green);text-decoration:none;">releases page</a>. Verify checksums before use.
+  <p style="margin-top:28px;font-size:0.76rem;color:var(--text-dim);max-width:480px;margin-left:auto;margin-right:auto;line-height:1.8;text-align:center;">
+    Tested with <span style="color:var(--amber);">rustc 1.75 / cargo 1.75</span>. No runtime dependencies. The vault file uses the <span style="color:var(--green);">SVT1</span> binary format — auditable and dependency-free.
   </p>
 
-  <div style="margin-top:64px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
-    <a href="#" class="btn-primary">→ GitHub Releases</a>
-    <a href="#" class="btn-ghost">Read the Docs</a>
+  <div style="margin-top:56px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+    <a href="https://github.com/noveoko/qrpto-note" target="_blank" class="btn-primary">↗ View on GitHub</a>
+    <a href="https://github.com/noveoko/qrpto-note/blob/main/README.md" target="_blank" class="btn-ghost">Read the README</a>
+  </div>
+</section>
+
+<!-- PROJECT STRUCTURE -->
+<section class="section" style="border-top:1px solid var(--border);">
+  <div class="section-label">// project structure</div>
+  <h2 class="section-title">Clean separation of concerns.</h2>
+
+  <div style="margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;">
+
+    <div style="background:#060906;border:1px solid var(--border);padding:28px;">
+      <div style="font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;">src/</div>
+      <div style="font-size:0.8rem;line-height:2.4;">
+        <div style="display:flex;gap:16px;"><span style="color:var(--amber);min-width:120px;">main.rs</span><span style="color:var(--text-dim);">Entry point, password prompt, TUI event loop</span></div>
+        <div style="display:flex;gap:16px;"><span style="color:var(--amber);min-width:120px;">app.rs</span><span style="color:var(--text-dim);">State machine: Locked → Revealed → Editing</span></div>
+        <div style="display:flex;gap:16px;"><span style="color:var(--amber);min-width:120px;">ui.rs</span><span style="color:var(--text-dim);">ratatui rendering (header, list, footer)</span></div>
+        <div style="display:flex;gap:16px;"><span style="color:var(--amber);min-width:120px;">crypto.rs</span><span style="color:var(--text-dim);">AES-256-GCM engine + Argon2id key derivation</span></div>
+        <div style="display:flex;gap:16px;"><span style="color:var(--amber);min-width:120px;">secure_buf.rs</span><span style="color:var(--text-dim);">mlock'd, zeroize-on-drop cleartext buffer</span></div>
+        <div style="display:flex;gap:16px;"><span style="color:var(--amber);min-width:120px;">storage.rs</span><span style="color:var(--text-dim);">Binary vault file format (SVT1)</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:20px;">// known limitations</div>
+      <ul style="list-style:none;font-size:0.78rem;line-height:1.8;">
+        <li style="padding:12px 0;border-bottom:1px solid var(--border);color:var(--text-dim);display:flex;gap:12px;align-items:flex-start;">
+          <span style="color:var(--amber);flex-shrink:0;">!</span>
+          <span>The intermediate <span style="color:var(--text);">Vec&lt;u8&gt;</span> from the AES-GCM decrypt call lives briefly on the heap before loading into <span style="color:var(--text);">SecureBuffer</span>. A custom allocator (e.g. memsec) would close this window.</span>
+        </li>
+        <li style="padding:12px 0;border-bottom:1px solid var(--border);color:var(--text-dim);display:flex;gap:12px;align-items:flex-start;">
+          <span style="color:var(--amber);flex-shrink:0;">!</span>
+          <span>The AES key schedule inside <span style="color:var(--text);">Aes256Gcm</span> is not explicitly zeroed on drop — the crate does not expose a <span style="color:var(--text);">Zeroize</span> impl on the cipher.</span>
+        </li>
+        <li style="padding:12px 0;color:var(--text-dim);display:flex;gap:12px;align-items:flex-start;">
+          <span style="color:var(--amber);flex-shrink:0;">!</span>
+          <span><span style="color:var(--text);">mlock</span> is best-effort: it can fail silently if <span style="color:var(--text);">RLIMIT_MEMLOCK</span> is exhausted. Zeroize still runs regardless.</span>
+        </li>
+      </ul>
+    </div>
+
   </div>
 </section>
 
@@ -989,12 +1151,12 @@
 <footer>
   <div class="footer-logo">Qrpto<span>:</span>note</div>
   <ul class="footer-links">
-    <li><a href="#">GitHub</a></li>
-    <li><a href="#">Docs</a></li>
-    <li><a href="#">Security</a></li>
-    <li><a href="#">Changelog</a></li>
+    <li><a href="https://github.com/noveoko/qrpto-note" target="_blank">GitHub</a></li>
+    <li><a href="https://github.com/noveoko/qrpto-note/blob/main/README.md" target="_blank">README</a></li>
+    <li><a href="https://github.com/noveoko/qrpto-note/issues" target="_blank">Issues</a></li>
+    <li><a href="https://github.com/noveoko/qrpto-note/commits/main/" target="_blank">Changelog</a></li>
   </ul>
-  <div class="footer-copy">// MIT License · no telemetry · no cloud</div>
+  <div class="footer-copy">// MIT License · no telemetry · no cloud · <a href="https://github.com/noveoko/qrpto-note" target="_blank" style="color:var(--green-dim);text-decoration:none;">github.com/noveoko/qrpto-note</a></div>
 </footer>
 
 <script>
