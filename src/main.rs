@@ -107,7 +107,7 @@ fn read_password(prompt: &str) -> Zeroizing<String> {
 //  Vault setup (load-or-create)
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn setup_vault(path: &PathBuf) -> Result<(Vault, CryptoEngine), String> {
+fn setup_vault(path: &Path) -> Result<(Vault, CryptoEngine), String> {
     if path.exists() {
         let vault = Vault::load(path).map_err(|e| format!("Cannot read vault: {e}"))?;
 
