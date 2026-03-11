@@ -1,13 +1,16 @@
 [package]
-name = "qrptonote"
-version = "0.1.0"
-edition = "2021"
-description = "Every line encrypted notepad built in Rust"
-license = "MIT"
-repository = "https://github.com/noveoko/qrpto-note"
-readme = "README.md"
-keywords = ["encryption", "tui", "vault", "aes", "secrets"]
-categories = ["command-line-utilities"]
+name        = "qrptonote"
+version     = "0.2.0"
+edition     = "2021"
+description = "AES-256-GCM encrypted terminal notebook. mlock'd cleartext buffer, Argon2id KDF, prctl-hardened."
+readme      = "README.md"
+license     = "MIT"
+repository  = "https://github.com/noveoko/qrpto-note"
+homepage    = "https://noveoko.github.io/qrpto-note"
+documentation = "https://github.com/noveoko/qrpto-note/blob/main/README.md"
+keywords    = ["encryption", "vault", "security", "terminal", "secrets"]
+categories  = ["command-line-utilities", "cryptography"]
+exclude     = ["tools/", "index.html"]
 
 [[bin]]
 name = "qrptonote"

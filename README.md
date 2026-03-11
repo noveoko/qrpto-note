@@ -16,6 +16,26 @@ cargo build --release
 
 ---
 
+## 🔍 First-Run Security Audit (Linux)
+
+qrptonote relies on OS-level features — `mlock`, `prctl`, ASLR, and ptrace
+restrictions — that must be correctly configured to work as intended.
+
+Run the one-time audit to verify your system before trusting it with secrets:
+```bash
+python3 tools/audit/qrptonote_audit.py
+# then open qrptonote_security_report.html
+```
+
+The script checks 21 security controls and generates a colour-coded HTML report
+with a fix command for every issue found. No root required, nothing is written
+to your system.
+
+> **Note for CI/server users:** run the audit on every new host you deploy to.
+> A misconfigured `ptrace_scope = 0` silently defeats process hardening.
+
+---
+
 ## Usage
 
 ```bash
