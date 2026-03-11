@@ -11,7 +11,7 @@ jobs:
     name: Dependency Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install cargo-audit
         run: cargo install cargo-audit
       - name: Run Audit
@@ -21,7 +21,7 @@ jobs:
     name: Static Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - 
       - name: Install Clippy
         run: rustup component add clippy
       - name: Run Clippy (Security focus)
@@ -31,7 +31,7 @@ jobs:
     name: Miri Memory Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Nightly Rust
         run: rustup toolchain install nightly --component miri
       - name: Run Miri
