@@ -1,0 +1,40 @@
+name: Rust Security Audit
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run Audit
+        run: cargo audit
+
+  analyze:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Clippy
+        run: rustup component add clippy
+      - name: Run Clippy (Security focus)
+        run: cargo clippy -- -D warnings -W clippy::suspicious -W clippy::style
+
+  memory-safety:
+    name: Miri Memory Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nightly Rust
+        run: rustup toolchain install nightly --component miri
+      - name: Run Miri
+        run: cargo +nightly miri test
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation" # Required if your code accesses files/network
