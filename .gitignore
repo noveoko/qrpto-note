@@ -27,3 +27,6 @@ Thumbs.db
 perf.data
 perf.data.old
 flamegraph.svg
+
+#audit reports
+qrptonote_security_report.html

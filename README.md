@@ -1,4 +1,4 @@
-# 🔐 Secure Vault – TUI-based AES-256-GCM Encrypted Notepad
+# 🔐 Qrpto:note – TUI-based AES-256-GCM Encrypted Notepad
 
 A terminal-based encrypted vault written in Rust.  Every line is stored as an
 independent AES-256-GCM ciphertext.  Cleartext only ever exists in a
