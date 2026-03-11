@@ -10,8 +10,8 @@ mod ui;
 
 use std::{
     io::{self, stdout, Write},
-    path::PathBuf,
     time::Duration,
+    path::Path,
 };
 
 use crossterm::{
