@@ -1,0 +1,25 @@
+[package]
+name = "qrptonote"
+version = "0.1.0"
+edition = "2021"
+description = "Every line encrypted notepad built in Rust"
+license = "MIT"
+repository = "https://github.com/noveoko/qrpto-note"
+readme = "README.md"
+keywords = ["encryption", "tui", "vault", "aes", "secrets"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "qrptonote"
+path = "src/main.rs"
+
+[dependencies]
+ratatui   = "0.26"
+crossterm = "0.27"
+aes-gcm   = "0.10"
+aead      = "0.5"
+zeroize   = { version = "1.8", features = ["derive", "alloc"] }
+libc      = "0.2"
+rand      = "0.8"
+argon2    = "0.5"
+base64ct  = "=1.6.0"

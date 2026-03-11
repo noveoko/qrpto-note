@@ -1,0 +1,29 @@
+# Build output
+/target/
+
+# Cargo lock (keep for binaries, remove this line if you want to commit it)
+# Cargo.lock
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Vault files (don't accidentally commit secrets)
+*.sv
+*.svt1
+
+# Profiling & benchmarks
+perf.data
+perf.data.old
+flamegraph.svg
