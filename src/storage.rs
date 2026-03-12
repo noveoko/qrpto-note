@@ -41,8 +41,8 @@ pub struct Vault {
 // ── Vault impl ────────────────────────────────────────────────────────────────
 
 impl Vault {
-    pub fn new_empty(salt: [u8; 32]) -> Self {
-        Vault {
+    pub const fn new_empty(salt: [u8; 32]) -> Self {
+        Self {
             salt,
             lines: Vec::new(),
         }
@@ -55,11 +55,19 @@ impl Vault {
 
         buf.extend_from_slice(MAGIC);
         buf.extend_from_slice(&self.salt);
-        buf.extend_from_slice(&(self.lines.len() as u32).to_le_bytes());
+        buf.extend_from_slice(
+            &u32::try_from(self.lines.len())
+                .expect("Line count overflow")
+                .to_le_bytes(),
+        );
 
         for line in &self.lines {
             buf.extend_from_slice(&line.nonce);
-            buf.extend_from_slice(&(line.ciphertext.len() as u32).to_le_bytes());
+            buf.extend_from_slice(
+                &u32::try_from(line.ciphertext.len())
+                    .expect("Ciphertext overflow")
+                    .to_le_bytes(),
+            );
             buf.extend_from_slice(&line.ciphertext);
         }
 
@@ -91,7 +99,11 @@ impl Vault {
         if data.len() < p + 4 {
             return Err(short_file());
         }
-        let count = u32::from_le_bytes(data[p..p + 4].try_into().unwrap()) as usize;
+        let count = u32::from_le_bytes(
+            data[p..p + 4]
+                .try_into()
+                .expect("TODO: verify this is safe"),
+        ) as usize;
         p += 4;
 
         // Entries
@@ -107,7 +119,11 @@ impl Vault {
             nonce.copy_from_slice(&data[p..p + 12]);
             p += 12;
 
-            let ct_len = u32::from_le_bytes(data[p..p + 4].try_into().unwrap()) as usize;
+            let ct_len = u32::from_le_bytes(
+                data[p..p + 4]
+                    .try_into()
+                    .expect("TODO: verify this is safe"),
+            ) as usize;
             p += 4;
 
             if data.len() < p + ct_len {
@@ -122,7 +138,7 @@ impl Vault {
             lines.push(EncryptedLine { nonce, ciphertext });
         }
 
-        Ok(Vault { salt, lines })
+        Ok(Self { salt, lines })
     }
 }
 
@@ -131,4 +147,175 @@ fn short_file() -> io::Error {
         io::ErrorKind::InvalidData,
         "File is too short to be a valid vault",
     )
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_file(name: &str) -> std::path::PathBuf {
+        let mut p = std::env::temp_dir();
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("TODO: verify this is safe")
+            .as_nanos();
+        p.push(format!("vault_test_{}_{}", name, ts));
+        p
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Round-trip: save → load
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn vault_round_trip() {
+        let path = temp_file("roundtrip");
+
+        let salt = [7u8; 32];
+
+        let mut vault = Vault::new_empty(salt);
+        vault.lines.push(EncryptedLine {
+            nonce: [1u8; 12],
+            ciphertext: vec![10, 11, 12, 13],
+        });
+
+        vault.save(&path).expect("TODO: verify this is safe");
+
+        let loaded = Vault::load(&path).expect("TODO: verify this is safe");
+
+        assert_eq!(loaded.salt, salt);
+        assert_eq!(loaded.lines.len(), 1);
+
+        fs::remove_file(path).ok();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Invalid magic
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn invalid_magic_fails() {
+        let path = temp_file("bad_magic");
+
+        fs::write(&path, b"XXXXbadvault").expect("TODO: verify this is safe");
+
+        let result = Vault::load(&path);
+
+        assert!(result.is_err());
+
+        fs::remove_file(path).ok();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Truncated file
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn truncated_file_rejected() {
+        let path = temp_file("truncated");
+
+        // valid magic but nothing else
+        fs::write(&path, b"SVT1").expect("TODO: verify this is safe");
+
+        let result = Vault::load(&path);
+
+        assert!(result.is_err());
+
+        fs::remove_file(path).ok();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Large vault (1000 entries)
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn large_vault_round_trip() {
+        let path = temp_file("large");
+
+        let salt = [9u8; 32];
+        let mut vault = Vault::new_empty(salt);
+
+        for i in 0..1000 {
+            vault.lines.push(EncryptedLine {
+                nonce: [i as u8; 12],
+                ciphertext: vec![i as u8; 32],
+            });
+        }
+
+        vault.save(&path).expect("TODO: verify this is safe");
+
+        let loaded = Vault::load(&path).expect("TODO: verify this is safe");
+
+        assert_eq!(loaded.salt, salt);
+        assert_eq!(loaded.lines.len(), 1000);
+
+        for (i, line) in loaded.lines.iter().enumerate() {
+            assert_eq!(line.nonce, [i as u8; 12]);
+            assert_eq!(line.ciphertext, vec![i as u8; 32]);
+        }
+
+        fs::remove_file(path).ok();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Extra useful tests
+    // ─────────────────────────────────────────────────────────────
+
+    // Entry header truncated
+    #[test]
+    fn truncated_entry_header_rejected() {
+        let path = temp_file("entry_header");
+
+        let mut data = Vec::new();
+        data.extend_from_slice(b"SVT1");
+        data.extend_from_slice(&[1u8; 32]); // salt
+        data.extend_from_slice(&(1u32.to_le_bytes())); // count
+        data.extend_from_slice(&[0u8; 5]); // incomplete header
+
+        fs::write(&path, data).expect("TODO: verify this is safe");
+
+        let result = Vault::load(&path);
+
+        assert!(result.is_err());
+
+        fs::remove_file(path).ok();
+    }
+
+    // Ciphertext truncated
+    #[test]
+    fn truncated_ciphertext_rejected() {
+        let path = temp_file("ct_truncated");
+
+        let mut data = Vec::new();
+        data.extend_from_slice(b"SVT1");
+        data.extend_from_slice(&[1u8; 32]); // salt
+        data.extend_from_slice(&(1u32.to_le_bytes())); // count
+
+        data.extend_from_slice(&[0u8; 12]); // nonce
+        data.extend_from_slice(&(10u32.to_le_bytes())); // ciphertext len
+        data.extend_from_slice(&[1u8; 3]); // truncated ciphertext
+
+        fs::write(&path, data).expect("TODO: verify this is safe");
+
+        let result = Vault::load(&path);
+
+        assert!(result.is_err());
+
+        fs::remove_file(path).ok();
+    }
+
+    // Zero-entry vault
+    #[test]
+    fn empty_vault_round_trip() {
+        let path = temp_file("empty");
+
+        let salt = [3u8; 32];
+        let vault = Vault::new_empty(salt);
+
+        vault.save(&path).expect("TODO: verify this is safe");
+
+        let loaded = Vault::load(&path).expect("TODO: verify this is safe");
+
+        assert_eq!(loaded.salt, salt);
+        assert_eq!(loaded.lines.len(), 0);
+
+        fs::remove_file(path).ok();
+    }
 }

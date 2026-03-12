@@ -62,7 +62,7 @@ pub struct App {
 
 impl App {
     pub fn new(vault: Vault, crypto: CryptoEngine, path: PathBuf) -> Self {
-        App {
+        Self {
             cursor: 0,
             mode: Mode::Locked,
             transient: None,
@@ -93,7 +93,7 @@ impl App {
 
     // ── Reveal / Edit lifecycle ───────────────────────────────────────────
 
-    /// Decrypt the focused entry directly into a new SecureBuffer (Fix 1).
+    /// Decrypt the focused entry directly into a new `SecureBuffer` (Fix 1).
     /// No intermediate Vec<u8> is created; plaintext lands in mlock'd memory.
     pub fn reveal(&mut self) {
         if self.vault.lines.is_empty() {
@@ -124,10 +124,10 @@ impl App {
                         } else {
                             "NOT mlock'd – may swap!"
                         },
-                        if !ls.dontdump {
-                            " | core-dump NOT suppressed"
-                        } else {
+                        if ls.dontdump {
                             ""
+                        } else {
+                            " | core-dump NOT suppressed"
                         },
                     )
                 };
@@ -275,7 +275,7 @@ impl App {
 
     pub fn save(&mut self) {
         match self.vault.save(&self.path) {
-            Ok(_) => self.status = String::from("Vault saved."),
+            Ok(()) => self.status = String::from("Vault saved."),
             Err(e) => self.status = format!("Save failed: {e}"),
         }
     }
@@ -294,5 +294,173 @@ impl App {
             drop(buf); // munlock + DONTDUMP pages freed
         }
         self.mode = Mode::Locked;
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypto::CryptoEngine;
+    use crate::storage::{EncryptedLine, Vault};
+    use std::path::PathBuf;
+
+    fn test_crypto() -> CryptoEngine {
+        let key = [7u8; 32];
+        CryptoEngine::from_key(&key)
+    }
+
+    fn test_app() -> App {
+        let crypto = test_crypto();
+        let salt = [1u8; 32];
+        let mut vault = Vault::new_empty(salt);
+
+        let (ct, nonce) = crypto.encrypt(b"hello").expect("TODO: verify this is safe");
+
+        vault.lines.push(EncryptedLine {
+            nonce,
+            ciphertext: ct,
+        });
+
+        App::new(vault, crypto, PathBuf::from("/tmp/testvault"))
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Locked → Revealed → Editing → Locked transition
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn state_machine_transitions() {
+        let mut app = test_app();
+
+        assert_eq!(app.mode, Mode::Locked);
+
+        app.reveal();
+        assert_eq!(app.mode, Mode::Revealed);
+
+        app.begin_edit();
+        assert_eq!(app.mode, Mode::Editing);
+
+        app.commit_edit();
+        assert_eq!(app.mode, Mode::Locked);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Navigation in Locked mode
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn navigation_locked_mode() {
+        let crypto = test_crypto();
+        let salt = [1u8; 32];
+        let mut vault = Vault::new_empty(salt);
+
+        for _ in 0..3 {
+            let (ct, nonce) = crypto.encrypt(b"x").expect("TODO: verify this is safe");
+            vault.lines.push(EncryptedLine {
+                nonce,
+                ciphertext: ct,
+            });
+        }
+
+        let mut app = App::new(vault, crypto, PathBuf::from("/tmp/testvault"));
+
+        assert_eq!(app.cursor, 0);
+
+        app.move_down();
+        assert_eq!(app.cursor, 1);
+
+        app.move_down();
+        assert_eq!(app.cursor, 2);
+
+        app.move_down(); // should clamp
+        assert_eq!(app.cursor, 2);
+
+        app.move_up();
+        assert_eq!(app.cursor, 1);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // seal() clears transient on transitions
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn seal_clears_transient() {
+        let mut app = test_app();
+
+        app.reveal();
+        assert!(app.transient.is_some());
+
+        app.move_down(); // navigation triggers seal()
+
+        assert!(app.transient.is_none());
+        assert_eq!(app.mode, Mode::Locked);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // commit_edit re-encrypts and updates vault
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn commit_edit_updates_ciphertext() {
+        let mut app = test_app();
+
+        let old_ct = app.vault.lines[0].ciphertext.clone();
+
+        app.reveal();
+        app.begin_edit();
+
+        app.type_char('X');
+
+        app.commit_edit();
+
+        let new_ct = &app.vault.lines[0].ciphertext;
+
+        assert_ne!(&old_ct, new_ct);
+        assert_eq!(app.mode, Mode::Locked);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // commit_edit actually persists plaintext change
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn commit_edit_persists_content() {
+        let mut app = test_app();
+
+        app.reveal();
+        app.begin_edit();
+
+        app.type_char('!');
+
+        app.commit_edit();
+
+        // decrypt again to confirm
+        app.reveal();
+
+        let text = app
+            .transient
+            .as_ref()
+            .expect("TODO: verify this is safe")
+            .as_str()
+            .to_string();
+
+        assert_eq!(text, "hello!");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // editing operations only work in Editing mode
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn editing_only_in_edit_mode() {
+        let mut app = test_app();
+
+        app.type_char('X');
+
+        app.reveal();
+
+        app.type_char('X');
+
+        let text = app
+            .transient
+            .as_ref()
+            .expect("TODO: verify this is safe")
+            .as_str()
+            .to_string();
+
+        assert_eq!(text, "hello");
     }
 }

@@ -55,7 +55,7 @@ pub struct ZeroizingCipher {
 
 impl ZeroizingCipher {
     fn new(key: &Key<Aes256Gcm>) -> Self {
-        ZeroizingCipher {
+        Self {
             inner: Aes256Gcm::new(key),
         }
     }
@@ -71,7 +71,7 @@ impl Drop for ZeroizingCipher {
         //   • write_volatile on a *mut u8 derived from a valid &mut T is
         //     sound – it performs a byte-level volatile store.
         unsafe {
-            let ptr = (&mut self.inner as *mut Aes256Gcm).cast::<u8>();
+            let ptr = (&raw mut self.inner).cast::<u8>();
             let len = std::mem::size_of::<Aes256Gcm>();
             for i in 0..len {
                 ptr.add(i).write_volatile(0u8);
@@ -94,7 +94,7 @@ impl CryptoEngine {
     /// The caller MUST zeroize the key array immediately after this returns.
     pub fn from_key(key: &[u8; 32]) -> Self {
         let k = Key::<Aes256Gcm>::from_slice(key);
-        CryptoEngine {
+        Self {
             cipher: ZeroizingCipher::new(k),
         }
     }

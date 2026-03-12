@@ -55,13 +55,13 @@ pub const CAPACITY: usize = 4096;
 pub struct LockStatus {
     /// mlock(2) succeeded → pages are pinned in RAM.
     pub mlocked: bool,
-    /// madvise(MADV_DONTDUMP) succeeded → pages excluded from core dumps.
+    /// `madvise(MADV_DONTDUMP)` succeeded → pages excluded from core dumps.
     pub dontdump: bool,
 }
 
 impl LockStatus {
     /// True when all memory-protection layers are active.
-    pub fn fully_protected(&self) -> bool {
+    pub const fn fully_protected(self) -> bool {
         self.mlocked && self.dontdump
     }
 }
@@ -83,8 +83,8 @@ impl SecureBuffer {
     // ── Construction ─────────────────────────────────────────────────────
 
     pub fn new() -> Self {
-        let storage = Box::new([0u8; CAPACITY]);
-        let ptr = storage.as_ptr() as *mut libc::c_void;
+        let mut storage = Box::new([0u8; CAPACITY]);
+        let ptr = storage.as_mut_ptr().cast::<libc::c_void>();
         let size = CAPACITY;
 
         // ── Layer 2a: raise RLIMIT_MEMLOCK before mlock ───────────────────
@@ -99,7 +99,7 @@ impl SecureBuffer {
                 rlim_cur: 0,
                 rlim_max: 0,
             };
-            if getrlimit(RLIMIT_MEMLOCK, &mut rl) == 0 {
+            if getrlimit(RLIMIT_MEMLOCK, &raw mut rl) == 0 {
                 // Only try to raise if we're below what we need.
                 let want = rl.rlim_cur.saturating_add(size as libc::rlim_t);
                 let cap = if rl.rlim_max == libc::RLIM_INFINITY {
@@ -112,7 +112,7 @@ impl SecureBuffer {
                         rlim_cur: want,
                         rlim_max: rl.rlim_max,
                     };
-                    setrlimit(RLIMIT_MEMLOCK, &new_rl); // failure is non-fatal
+                    setrlimit(RLIMIT_MEMLOCK, &raw const new_rl); // failure is non-fatal
                 }
             }
         }
@@ -127,7 +127,7 @@ impl SecureBuffer {
         // core dump, reducing the exposure window significantly.
         let dontdump = unsafe { madvise(ptr, size, MADV_DONTDUMP) == 0 };
 
-        SecureBuffer {
+        Self {
             storage,
             len: 0,
             cursor: 0,
@@ -143,11 +143,11 @@ impl SecureBuffer {
         std::str::from_utf8(&self.storage[..self.len]).unwrap_or("[utf-8 error]")
     }
 
-    /// Overwrite all bytes with 0 using write_volatile and reset length/cursor.
+    /// Overwrite all bytes with 0 using `write_volatile` and reset length/cursor.
     ///
-    /// write_volatile stores cannot be reordered or eliminated by the
+    /// `write_volatile` stores cannot be reordered or eliminated by the
     /// compiler, making this the guaranteed zeroize operation.  The
-    /// SeqCst fence prevents CPU reordering relative to subsequent code.
+    /// `SeqCst` fence prevents CPU reordering relative to subsequent code.
     pub fn zeroize(&mut self) {
         unsafe {
             let ptr = self.storage.as_mut_ptr();
@@ -227,10 +227,10 @@ impl SecureBuffer {
             self.cursor = self.next_boundary(self.cursor);
         }
     }
-    pub fn move_home(&mut self) {
+    pub const fn move_home(&mut self) {
         self.cursor = 0;
     }
-    pub fn move_end(&mut self) {
+    pub const fn move_end(&mut self) {
         self.cursor = self.len;
     }
 
@@ -251,7 +251,7 @@ impl SecureBuffer {
         pos
     }
     #[inline]
-    fn is_continuation(b: u8) -> bool {
+    const fn is_continuation(b: u8) -> bool {
         b & 0xC0 == 0x80
     }
 }
@@ -335,8 +335,163 @@ impl Drop for SecureBuffer {
         self.zeroize();
         // Layer 2: release the mlock budget back to the process.
         if self.lock_status.mlocked {
-            unsafe { munlock(self.storage.as_ptr() as *const libc::c_void, CAPACITY) };
+            unsafe { munlock(self.storage.as_ptr().cast::<libc::c_void>(), CAPACITY) };
         }
         // No need to undo MADV_DONTDUMP – pages are being freed anyway.
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ─────────────────────────────────────────────────────────────
+    // Insert characters and read back
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn insert_and_read_back() {
+        let mut buf = SecureBuffer::new();
+
+        buf.insert_char('h');
+        buf.insert_char('e');
+        buf.insert_char('l');
+        buf.insert_char('l');
+        buf.insert_char('o');
+
+        assert_eq!(buf.as_str(), "hello");
+        assert_eq!(buf.len, 5);
+        assert_eq!(buf.cursor, 5);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Backspace at position 0 should not panic
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn backspace_at_zero_safe() {
+        let mut buf = SecureBuffer::new();
+
+        buf.delete_before_cursor();
+
+        assert_eq!(buf.len, 0);
+        assert_eq!(buf.cursor, 0);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Delete at end should not panic
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn delete_at_end_safe() {
+        let mut buf = SecureBuffer::new();
+
+        buf.insert_char('a');
+        buf.insert_char('b');
+        buf.insert_char('c');
+
+        buf.move_end();
+        buf.delete_at_cursor();
+
+        assert_eq!(buf.as_str(), "abc");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // UTF-8 multibyte insertion (emoji = 4 bytes)
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn utf8_multibyte_insert() {
+        let mut buf = SecureBuffer::new();
+
+        buf.insert_char('😀');
+
+        assert_eq!(buf.as_str(), "😀");
+        assert_eq!(buf.len, 4);
+        assert_eq!(buf.cursor, 4);
+
+        buf.move_left();
+
+        assert_eq!(buf.cursor, 0);
+
+        buf.move_right();
+
+        assert_eq!(buf.cursor, 4);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Capacity overflow ignored (no panic)
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn capacity_overflow_ignored() {
+        let mut buf = SecureBuffer::new();
+
+        for _ in 0..CAPACITY {
+            buf.insert_char('a');
+        }
+
+        let len_before = buf.len;
+
+        buf.insert_char('b'); // should be ignored
+
+        assert_eq!(buf.len, len_before);
+        assert_eq!(buf.as_str().len(), CAPACITY);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Zeroize verification
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn zeroize_clears_storage() {
+        let mut buf = SecureBuffer::new();
+
+        buf.insert_char('s');
+        buf.insert_char('e');
+        buf.insert_char('c');
+        buf.insert_char('r');
+        buf.insert_char('e');
+        buf.insert_char('t');
+
+        buf.zeroize();
+
+        assert_eq!(buf.len, 0);
+        assert_eq!(buf.cursor, 0);
+
+        for b in buf.storage.iter() {
+            assert_eq!(*b, 0);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Extra: delete multibyte character
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn delete_multibyte_char() {
+        let mut buf = SecureBuffer::new();
+
+        buf.insert_char('😀');
+        buf.delete_before_cursor();
+
+        assert_eq!(buf.len, 0);
+        assert_eq!(buf.cursor, 0);
+        assert_eq!(buf.as_str(), "");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Extra: cursor movement across UTF-8 boundaries
+    // ─────────────────────────────────────────────────────────────
+    #[test]
+    fn cursor_respects_utf8_boundaries() {
+        let mut buf = SecureBuffer::new();
+
+        buf.insert_char('a');
+        buf.insert_char('😀');
+        buf.insert_char('b');
+
+        buf.move_end();
+
+        buf.move_left();
+        assert_eq!(buf.cursor, 5); // after emoji
+
+        buf.move_left();
+        assert_eq!(buf.cursor, 1); // after 'a'
+
+        buf.move_left();
+        assert_eq!(buf.cursor, 0);
     }
 }

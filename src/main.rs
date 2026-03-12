@@ -1,20 +1,17 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  main.rs  –  Entry point: prctl hardening → password → vault → TUI loop
-// ─────────────────────────────────────────────────────────────────────────────
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(clippy::unwrap_used)] // Blocks the code from compiling if you use .expect("TODO: verify this is safe")
+                              // ─────────────────────────────────────────────────────────────────────────────
+                              //  main.rs  –  Entry point: prctl hardening → password → vault → TUI loop
+                              // ─────────────────────────────────────────────────────────────────────────────
 
 mod app;
 mod crypto;
 mod secure_buf;
 mod storage;
 mod ui;
-
-use std::{
-    io::{self, stdout, Write},
-    path::Path,
-    time::Duration,
-};
-
-use std::path::PathBuf;
 
 use crossterm::{
     event::{
@@ -24,6 +21,11 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
+use std::{
+    io::{self, stdout, Write},
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
@@ -63,7 +65,7 @@ fn harden_process() {
     };
     if ret != 0 {
         // Non-fatal: continue with remaining protections.
-        eprintln!("  [warn] prctl(PR_SET_DUMPABLE, 0) failed (errno {})", ret);
+        eprintln!("  [warn] prctl(PR_SET_DUMPABLE, 0) failed (errno {ret})");
     }
 }
 
@@ -73,7 +75,7 @@ fn harden_process() {
 
 fn read_password(prompt: &str) -> Zeroizing<String> {
     print!("{prompt}");
-    stdout().flush().unwrap();
+    stdout().flush().expect("TODO: verify this is safe");
 
     let mut pw = Zeroizing::new(String::new());
 
@@ -85,13 +87,13 @@ fn read_password(prompt: &str) -> Zeroizing<String> {
                 KeyCode::Char(c) => {
                     pw.push(c);
                     print!("•");
-                    stdout().flush().unwrap();
+                    stdout().flush().expect("TODO: verify this is safe");
                 }
                 KeyCode::Backspace => {
                     if !pw.is_empty() {
                         pw.pop();
                         print!("\x08 \x08");
-                        stdout().flush().unwrap();
+                        stdout().flush().expect("TODO: verify this is safe");
                     }
                 }
                 _ => {}
@@ -183,7 +185,7 @@ fn run(mut app: App) -> io::Result<()> {
 
         match app.mode {
             Mode::Locked => match key.code {
-                KeyCode::Char('q') | KeyCode::Char('Q') => break 'main,
+                KeyCode::Char('q' | 'Q') => break 'main,
                 KeyCode::Up => app.move_up(),
                 KeyCode::Down => app.move_down(),
                 KeyCode::Char(' ') => app.reveal(),

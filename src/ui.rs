@@ -65,25 +65,21 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
         Mode::Editing => (" EDITING ", Color::Green),
     };
 
-    let fname = app
-        .path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| app.path.to_string_lossy().into_owned());
+    let file_name_str = app.path.file_name().map_or_else(
+        || app.path.to_string_lossy().into_owned(),
+        |n| n.to_string_lossy().into_owned(),
+    );
 
     // Memory-lock indicator: shown whenever a buffer has been opened this session.
-    let mem_indicator = match app.last_lock_status {
-        Some(ls) => {
-            let mlock_sym = if ls.mlocked { "🔒" } else { "⚠ " };
-            let dump_sym = if ls.dontdump { "🛡" } else { "⚠ " };
-            format!("  {mlock_sym}mlock {dump_sym}DONTDUMP")
-        }
-        None => String::new(),
-    };
+    let mem_indicator = app.last_lock_status.map_or_else(String::new, |ls| {
+        let mlock_sym = if ls.mlocked { "🔒" } else { "⚠ " };
+        let dump_sym = if ls.dontdump { "🛡" } else { "⚠ " };
+        format!("  {mlock_sym}mlock {dump_sym}DONTDUMP")
+    });
 
     let title = format!(
         "  🔐  Qrpto:note  │  {}  │  {} entr{}{}",
-        fname,
+        file_name_str,
         app.vault.lines.len(),
         if app.vault.lines.len() == 1 {
             "y"
@@ -178,24 +174,23 @@ fn build_line(app: &App, idx: usize) -> Line<'static> {
                     ),
                     Span::styled(after, Style::default().fg(Color::White)),
                 ]);
-            } else {
-                // Revealed but not yet editing.
-                return Line::from(vec![
-                    Span::styled(
-                        "▶ ",
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(num_label, Style::default().fg(Color::Yellow)),
-                    Span::styled(
-                        text.to_owned(),
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ]);
             }
+            // Revealed but not yet editing.
+            return Line::from(vec![
+                Span::styled(
+                    "▶ ",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(num_label, Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    text.to_owned(),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]);
         }
     }
 

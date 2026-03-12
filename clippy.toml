@@ -1,0 +1,5 @@
+# clippy.toml
+msrv = "1.94.0" # Minimum Supported Rust Version
+disallowed-macros = [
+    { path = "std::panic", reason = "Panics are not allowed in security-critical code" }
+]
