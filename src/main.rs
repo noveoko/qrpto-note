@@ -237,7 +237,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    let path = PathBuf::from(&args[1]);
+    let path = Path::from(&args[1]);
 
     // In main(), after the banner, before setup_vault():
     if !path.exists() {
