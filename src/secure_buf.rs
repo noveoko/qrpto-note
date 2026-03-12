@@ -41,9 +41,9 @@
 //  is no intermediate heap Vec<u8> that would briefly hold cleartext before
 //  being freed without zeroing.
 
-use std::sync::atomic::{compiler_fence, Ordering};
 use aead::Buffer as AeadBuffer;
-use libc::{madvise, mlock, munlock, setrlimit, getrlimit, MADV_DONTDUMP, RLIMIT_MEMLOCK};
+use libc::{getrlimit, madvise, mlock, munlock, setrlimit, MADV_DONTDUMP, RLIMIT_MEMLOCK};
+use std::sync::atomic::{compiler_fence, Ordering};
 
 /// Maximum bytes a single vault entry may contain (4 KiB).
 pub const CAPACITY: usize = 4096;
@@ -54,9 +54,9 @@ pub const CAPACITY: usize = 4096;
 #[derive(Debug, Clone, Copy)]
 pub struct LockStatus {
     /// mlock(2) succeeded → pages are pinned in RAM.
-    pub mlocked:    bool,
+    pub mlocked: bool,
     /// madvise(MADV_DONTDUMP) succeeded → pages excluded from core dumps.
-    pub dontdump:   bool,
+    pub dontdump: bool,
 }
 
 impl LockStatus {
@@ -84,7 +84,7 @@ impl SecureBuffer {
 
     pub fn new() -> Self {
         let storage = Box::new([0u8; CAPACITY]);
-        let ptr  = storage.as_ptr() as *mut libc::c_void;
+        let ptr = storage.as_ptr() as *mut libc::c_void;
         let size = CAPACITY;
 
         // ── Layer 2a: raise RLIMIT_MEMLOCK before mlock ───────────────────
@@ -95,13 +95,23 @@ impl SecureBuffer {
         // soft+CAPACITY.  The hard limit acts as a ceiling; if it's too low
         // we carry on and let mlock fail gracefully.
         unsafe {
-            let mut rl = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+            let mut rl = libc::rlimit {
+                rlim_cur: 0,
+                rlim_max: 0,
+            };
             if getrlimit(RLIMIT_MEMLOCK, &mut rl) == 0 {
                 // Only try to raise if we're below what we need.
                 let want = rl.rlim_cur.saturating_add(size as libc::rlim_t);
-                let cap  = if rl.rlim_max == libc::RLIM_INFINITY { want } else { rl.rlim_max };
+                let cap = if rl.rlim_max == libc::RLIM_INFINITY {
+                    want
+                } else {
+                    rl.rlim_max
+                };
                 if want <= cap {
-                    let new_rl = libc::rlimit { rlim_cur: want, rlim_max: rl.rlim_max };
+                    let new_rl = libc::rlimit {
+                        rlim_cur: want,
+                        rlim_max: rl.rlim_max,
+                    };
                     setrlimit(RLIMIT_MEMLOCK, &new_rl); // failure is non-fatal
                 }
             }
@@ -146,7 +156,7 @@ impl SecureBuffer {
             }
         }
         compiler_fence(Ordering::SeqCst);
-        self.len    = 0;
+        self.len = 0;
         self.cursor = 0;
     }
 
@@ -157,39 +167,50 @@ impl SecureBuffer {
         let mut tmp = [0u8; 4];
         let encoded = ch.encode_utf8(&mut tmp);
         let clen = encoded.len();
-        if self.len + clen > CAPACITY { return; }
-        self.storage.copy_within(self.cursor..self.len, self.cursor + clen);
+        if self.len + clen > CAPACITY {
+            return;
+        }
+        self.storage
+            .copy_within(self.cursor..self.len, self.cursor + clen);
         self.storage[self.cursor..self.cursor + clen].copy_from_slice(encoded.as_bytes());
-        self.len    += clen;
+        self.len += clen;
         self.cursor += clen;
     }
 
     /// Delete the character immediately *before* the cursor (Backspace).
     pub fn delete_before_cursor(&mut self) {
-        if self.cursor == 0 { return; }
-        let end   = self.cursor;
+        if self.cursor == 0 {
+            return;
+        }
+        let end = self.cursor;
         let start = self.prev_boundary(end);
-        let clen  = end - start;
+        let clen = end - start;
         self.storage.copy_within(end..self.len, start);
         // Volatile-zero the vacated tail so it can never be re-read.
         unsafe {
             let ptr = self.storage.as_mut_ptr().add(self.len - clen);
-            for i in 0..clen { ptr.add(i).write_volatile(0u8); }
+            for i in 0..clen {
+                ptr.add(i).write_volatile(0u8);
+            }
         }
-        self.len    -= clen;
-        self.cursor  = start;
+        self.len -= clen;
+        self.cursor = start;
     }
 
     /// Delete the character *at* the cursor position (Delete key).
     pub fn delete_at_cursor(&mut self) {
-        if self.cursor >= self.len { return; }
+        if self.cursor >= self.len {
+            return;
+        }
         let start = self.cursor;
-        let end   = self.next_boundary(start);
-        let clen  = end - start;
+        let end = self.next_boundary(start);
+        let clen = end - start;
         self.storage.copy_within(end..self.len, start);
         unsafe {
             let ptr = self.storage.as_mut_ptr().add(self.len - clen);
-            for i in 0..clen { ptr.add(i).write_volatile(0u8); }
+            for i in 0..clen {
+                ptr.add(i).write_volatile(0u8);
+            }
         }
         self.len -= clen;
     }
@@ -197,28 +218,42 @@ impl SecureBuffer {
     // ── Cursor movement ──────────────────────────────────────────────────
 
     pub fn move_left(&mut self) {
-        if self.cursor > 0 { self.cursor = self.prev_boundary(self.cursor); }
+        if self.cursor > 0 {
+            self.cursor = self.prev_boundary(self.cursor);
+        }
     }
     pub fn move_right(&mut self) {
-        if self.cursor < self.len { self.cursor = self.next_boundary(self.cursor); }
+        if self.cursor < self.len {
+            self.cursor = self.next_boundary(self.cursor);
+        }
     }
-    pub fn move_home(&mut self) { self.cursor = 0; }
-    pub fn move_end(&mut self)  { self.cursor = self.len; }
+    pub fn move_home(&mut self) {
+        self.cursor = 0;
+    }
+    pub fn move_end(&mut self) {
+        self.cursor = self.len;
+    }
 
     // ── Private UTF-8 helpers ────────────────────────────────────────────
 
     fn prev_boundary(&self, mut pos: usize) -> usize {
         pos -= 1;
-        while pos > 0 && Self::is_continuation(self.storage[pos]) { pos -= 1; }
+        while pos > 0 && Self::is_continuation(self.storage[pos]) {
+            pos -= 1;
+        }
         pos
     }
     fn next_boundary(&self, mut pos: usize) -> usize {
         pos += 1;
-        while pos < self.len && Self::is_continuation(self.storage[pos]) { pos += 1; }
+        while pos < self.len && Self::is_continuation(self.storage[pos]) {
+            pos += 1;
+        }
         pos
     }
     #[inline]
-    fn is_continuation(b: u8) -> bool { b & 0xC0 == 0x80 }
+    fn is_continuation(b: u8) -> bool {
+        b & 0xC0 == 0x80
+    }
 }
 
 // ── aead::Buffer impl ─────────────────────────────────────────────────────────
@@ -242,22 +277,32 @@ impl SecureBuffer {
 
 impl AsRef<[u8]> for SecureBuffer {
     #[inline]
-    fn as_ref(&self) -> &[u8] { &self.storage[..self.len] }
+    fn as_ref(&self) -> &[u8] {
+        &self.storage[..self.len]
+    }
 }
 
 impl AsMut<[u8]> for SecureBuffer {
     #[inline]
-    fn as_mut(&mut self) -> &mut [u8] { &mut self.storage[..self.len] }
+    fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.storage[..self.len]
+    }
 }
 
 impl AeadBuffer for SecureBuffer {
-    fn len(&self)      -> usize { self.len }
-    fn is_empty(&self) -> bool  { self.len == 0 }
+    fn len(&self) -> usize {
+        self.len
+    }
+    fn is_empty(&self) -> bool {
+        self.len == 0
+    }
 
     /// Called by `decrypt_in_place` to append the ciphertext+tag bytes.
     fn extend_from_slice(&mut self, other: &[u8]) -> aead::Result<()> {
         let new_len = self.len.checked_add(other.len()).ok_or(aead::Error)?;
-        if new_len > CAPACITY { return Err(aead::Error); }
+        if new_len > CAPACITY {
+            return Err(aead::Error);
+        }
         self.storage[self.len..new_len].copy_from_slice(other);
         self.len = new_len;
         Ok(())
@@ -266,13 +311,19 @@ impl AeadBuffer for SecureBuffer {
     /// Called by `decrypt_in_place` to strip the 16-byte GCM tag after
     /// authentication succeeds.  We volatile-zero the freed tail bytes.
     fn truncate(&mut self, len: usize) {
-        if len >= self.len { return; }
+        if len >= self.len {
+            return;
+        }
         unsafe {
             let ptr = self.storage.as_mut_ptr().add(len);
-            for i in 0..(self.len - len) { ptr.add(i).write_volatile(0u8); }
+            for i in 0..(self.len - len) {
+                ptr.add(i).write_volatile(0u8);
+            }
         }
         self.len = len;
-        if self.cursor > len { self.cursor = len; }
+        if self.cursor > len {
+            self.cursor = len;
+        }
     }
 }
 

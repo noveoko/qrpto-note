@@ -55,7 +55,9 @@ pub struct ZeroizingCipher {
 
 impl ZeroizingCipher {
     fn new(key: &Key<Aes256Gcm>) -> Self {
-        ZeroizingCipher { inner: Aes256Gcm::new(key) }
+        ZeroizingCipher {
+            inner: Aes256Gcm::new(key),
+        }
     }
 }
 
@@ -92,7 +94,9 @@ impl CryptoEngine {
     /// The caller MUST zeroize the key array immediately after this returns.
     pub fn from_key(key: &[u8; 32]) -> Self {
         let k = Key::<Aes256Gcm>::from_slice(key);
-        CryptoEngine { cipher: ZeroizingCipher::new(k) }
+        CryptoEngine {
+            cipher: ZeroizingCipher::new(k),
+        }
     }
 
     // ── Encryption ────────────────────────────────────────────────────────
@@ -101,7 +105,9 @@ impl CryptoEngine {
     /// Ciphertext is not sensitive; a plain Vec<u8> is fine here.
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<(Vec<u8>, [u8; 12]), String> {
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-        let ct = self.cipher.inner
+        let ct = self
+            .cipher
+            .inner
             .encrypt(&nonce, plaintext)
             .map_err(|e| e.to_string())?;
         let mut nonce_arr = [0u8; 12];
@@ -127,8 +133,8 @@ impl CryptoEngine {
     pub fn decrypt_into(
         &self,
         ciphertext: &[u8],
-        nonce:      &[u8; 12],
-        buf:        &mut SecureBuffer,
+        nonce: &[u8; 12],
+        buf: &mut SecureBuffer,
     ) -> Result<(), String> {
         // Start clean.
         buf.zeroize();
@@ -143,7 +149,8 @@ impl CryptoEngine {
         // On success the tag is stripped via buf.truncate(); on failure
         // buf is left containing the ciphertext (not sensitive).
         let nonce = Nonce::from_slice(nonce);
-        self.cipher.inner
+        self.cipher
+            .inner
             .decrypt_in_place(nonce, &[], buf)
             .map_err(|_| "Authentication failed – wrong key or corrupted data".to_string())?;
 
@@ -156,11 +163,7 @@ impl CryptoEngine {
     /// Used ONLY for the password-verification check in `setup_vault`
     /// (the result is a short, non-secret success proof and is zeroized
     /// immediately by the caller via `Zeroizing<Vec<u8>>`).
-    pub fn decrypt_verify(
-        &self,
-        ciphertext: &[u8],
-        nonce:      &[u8; 12],
-    ) -> Result<(), String> {
+    pub fn decrypt_verify(&self, ciphertext: &[u8], nonce: &[u8; 12]) -> Result<(), String> {
         let mut buf = SecureBuffer::new();
         self.decrypt_into(ciphertext, nonce, &mut buf)?;
         // buf is zeroized + munlocked when it drops here.

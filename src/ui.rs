@@ -6,7 +6,7 @@
 //  ═════════════════════════════════
 //
 //  ┌──────────────────────────────────────────────────────────┐  ← 3 rows
-//  │  🔐  Secure Vault  │  vault.sv  │  3 entries    [MODE]  │
+//  │  🔐  Qrpto:note  │  vault.sv  │  3 entries    [MODE]  │
 //  └──────────────────────────────────────────────────────────┘
 //  ┌──────────────────────────────────────────────────────────┐  ← fills
 //  │  Entries                                                 │
@@ -25,11 +25,11 @@
 //  inferred by the attacker observing the screen.
 
 use ratatui::{
-    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    Frame,
 };
 
 use crate::app::{App, Mode};
@@ -60,9 +60,9 @@ pub fn draw(frame: &mut Frame, app: &App) {
 
 fn render_header(frame: &mut Frame, app: &App, area: Rect) {
     let (mode_str, mode_color) = match app.mode {
-        Mode::Locked   => (" LOCKED ",   Color::Red),
+        Mode::Locked => (" LOCKED ", Color::Red),
         Mode::Revealed => (" REVEALED ", Color::Yellow),
-        Mode::Editing  => (" EDITING ",  Color::Green),
+        Mode::Editing => (" EDITING ", Color::Green),
     };
 
     let fname = app
@@ -74,18 +74,22 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
     // Memory-lock indicator: shown whenever a buffer has been opened this session.
     let mem_indicator = match app.last_lock_status {
         Some(ls) => {
-            let mlock_sym  = if ls.mlocked   { "🔒" } else { "⚠ " };
-            let dump_sym   = if ls.dontdump  { "🛡" } else { "⚠ " };
+            let mlock_sym = if ls.mlocked { "🔒" } else { "⚠ " };
+            let dump_sym = if ls.dontdump { "🛡" } else { "⚠ " };
             format!("  {mlock_sym}mlock {dump_sym}DONTDUMP")
         }
         None => String::new(),
     };
 
     let title = format!(
-        "  🔐  Secure Vault  │  {}  │  {} entr{}{}",
+        "  🔐  Qrpto:note  │  {}  │  {} entr{}{}",
         fname,
         app.vault.lines.len(),
-        if app.vault.lines.len() == 1 { "y" } else { "ies" },
+        if app.vault.lines.len() == 1 {
+            "y"
+        } else {
+            "ies"
+        },
         mem_indicator,
     );
 
@@ -113,30 +117,20 @@ fn render_list(frame: &mut Frame, app: &App, area: Rect) {
     let n = app.vault.lines.len();
 
     if n == 0 {
-        let empty = Paragraph::new(
-            "\n  No entries yet.\n  Press [n] to create your first entry.",
-        )
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Entries "),
-        )
-        .style(
-            Style::default()
-                .fg(Color::DarkGray)
-                .add_modifier(Modifier::ITALIC),
-        );
+        let empty = Paragraph::new("\n  No entries yet.\n  Press [n] to create your first entry.")
+            .block(Block::default().borders(Borders::ALL).title(" Entries "))
+            .style(
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            );
         frame.render_widget(empty, area);
         return;
     }
 
-    let items: Vec<ListItem> = (0..n)
-        .map(|i| ListItem::new(build_line(app, i)))
-        .collect();
+    let items: Vec<ListItem> = (0..n).map(|i| ListItem::new(build_line(app, i))).collect();
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Entries ");
+    let block = Block::default().borders(Borders::ALL).title(" Entries ");
 
     let list = List::new(items).block(block);
 
@@ -157,7 +151,7 @@ fn build_line(app: &App, idx: usize) -> Line<'static> {
     if focused && matches!(app.mode, Mode::Revealed | Mode::Editing) {
         if let Some(buf) = &app.transient {
             let text = buf.as_str();
-            let cur  = buf.cursor;
+            let cur = buf.cursor;
 
             // Clamp cursor to valid byte positions (safety guard).
             let cur = cur.min(text.len());
@@ -165,7 +159,7 @@ fn build_line(app: &App, idx: usize) -> Line<'static> {
             if app.mode == Mode::Editing {
                 // Split the text at the cursor and insert a visual bar.
                 let before = text[..cur].to_owned();
-                let after  = text[cur..].to_owned();
+                let after = text[cur..].to_owned();
 
                 return Line::from(vec![
                     Span::styled(
@@ -174,24 +168,15 @@ fn build_line(app: &App, idx: usize) -> Line<'static> {
                             .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(
-                        num_label,
-                        Style::default().fg(Color::Green),
-                    ),
-                    Span::styled(
-                        before,
-                        Style::default().fg(Color::White),
-                    ),
+                    Span::styled(num_label, Style::default().fg(Color::Green)),
+                    Span::styled(before, Style::default().fg(Color::White)),
                     Span::styled(
                         "│",
                         Style::default()
                             .fg(Color::Yellow)
                             .add_modifier(Modifier::SLOW_BLINK),
                     ),
-                    Span::styled(
-                        after,
-                        Style::default().fg(Color::White),
-                    ),
+                    Span::styled(after, Style::default().fg(Color::White)),
                 ]);
             } else {
                 // Revealed but not yet editing.
@@ -202,10 +187,7 @@ fn build_line(app: &App, idx: usize) -> Line<'static> {
                             .fg(Color::Yellow)
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(
-                        num_label,
-                        Style::default().fg(Color::Yellow),
-                    ),
+                    Span::styled(num_label, Style::default().fg(Color::Yellow)),
                     Span::styled(
                         text.to_owned(),
                         Style::default()
@@ -224,19 +206,25 @@ fn build_line(app: &App, idx: usize) -> Line<'static> {
         // ciphertext for an empty entry is exactly 16 bytes (bare GCM tag).
         // Anything longer means the entry actually has content.
         let has_content = app.vault.lines[idx].ciphertext.len() > 16;
-        let num_color   = if has_content { Color::LightBlue } else { Color::DarkGray };
+        let num_color = if has_content {
+            Color::LightBlue
+        } else {
+            Color::DarkGray
+        };
         ("  ", num_color, Color::DarkGray)
     };
 
     Line::from(vec![
         Span::styled(
             prefix,
-            Style::default()
-                .fg(label_color)
-                .add_modifier(if focused { Modifier::BOLD } else { Modifier::empty() }),
+            Style::default().fg(label_color).add_modifier(if focused {
+                Modifier::BOLD
+            } else {
+                Modifier::empty()
+            }),
         ),
         Span::styled(num_label, Style::default().fg(label_color)),
-        Span::styled(MASK,      Style::default().fg(mask_color)),
+        Span::styled(MASK, Style::default().fg(mask_color)),
     ])
 }
 
@@ -248,9 +236,7 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
             " [↑↓]  Navigate    [Space]  Reveal    \
              [n]  New    [d]  Delete    [s]  Save    [q]  Quit "
         }
-        Mode::Revealed => {
-            " [Enter]  Edit    [Esc / ↑↓]  Lock & navigate "
-        }
+        Mode::Revealed => " [Enter]  Edit    [Esc / ↑↓]  Lock & navigate ",
         Mode::Editing => {
             " [Esc]  Save & lock    [↑↓]  Discard & navigate    \
              [← →]  Cursor    [Home / End]    [Backspace]  Del-back    [Del]  Del-fwd "
@@ -262,17 +248,10 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
             format!("  {}  ", app.status),
             Style::default().fg(Color::White),
         ),
-        Span::styled(
-            "│",
-            Style::default().fg(Color::DarkGray),
-        ),
-        Span::styled(
-            hints,
-            Style::default().fg(Color::DarkGray),
-        ),
+        Span::styled("│", Style::default().fg(Color::DarkGray)),
+        Span::styled(hints, Style::default().fg(Color::DarkGray)),
     ]);
 
-    let footer = Paragraph::new(line)
-        .block(Block::default().borders(Borders::ALL));
+    let footer = Paragraph::new(line).block(Block::default().borders(Borders::ALL));
     frame.render_widget(footer, area);
 }

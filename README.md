@@ -11,7 +11,7 @@ independent AES-256-GCM ciphertext.  Cleartext only ever exists in a
 ```bash
 # Requires Rust 1.75+ (tested with rustc 1.75 / cargo 1.75)
 cargo build --release
-# Binary: ./target/release/secure-vault
+# Binary: ./target/release/qrptonote
 ```
 
 ---
@@ -40,10 +40,10 @@ to your system.
 
 ```bash
 # Create a new vault
-./secure-vault my-secrets.sv
+./qrptonote my-secrets.sv
 
 # Open an existing vault
-./secure-vault my-secrets.sv
+./qrptonote my-secrets.sv
 ```
 
 ---

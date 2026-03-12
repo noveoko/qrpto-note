@@ -41,19 +41,23 @@ use crate::secure_buf::{LockStatus, SecureBuffer};
 use crate::storage::{EncryptedLine, Vault};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mode { Locked, Revealed, Editing }
+pub enum Mode {
+    Locked,
+    Revealed,
+    Editing,
+}
 
 pub struct App {
-    pub vault:     Vault,
-    pub cursor:    usize,
-    pub mode:      Mode,
+    pub vault: Vault,
+    pub cursor: usize,
+    pub mode: Mode,
     /// Single transient cleartext buffer.  None in Locked mode.
     pub transient: Option<SecureBuffer>,
-    pub status:    String,
-    pub path:      PathBuf,
+    pub status: String,
+    pub path: PathBuf,
     /// Last observed lock status (shown in UI header).
     pub last_lock_status: Option<LockStatus>,
-    crypto:        CryptoEngine,
+    crypto: CryptoEngine,
 }
 
 impl App {
@@ -74,13 +78,17 @@ impl App {
 
     pub fn move_up(&mut self) {
         self.seal();
-        if self.cursor > 0 { self.cursor -= 1; }
+        if self.cursor > 0 {
+            self.cursor -= 1;
+        }
     }
 
     pub fn move_down(&mut self) {
         self.seal();
         let last = self.vault.lines.len().saturating_sub(1);
-        if self.cursor < last { self.cursor += 1; }
+        if self.cursor < last {
+            self.cursor += 1;
+        }
     }
 
     // ── Reveal / Edit lifecycle ───────────────────────────────────────────
@@ -98,7 +106,10 @@ impl App {
         let mut buf = SecureBuffer::new();
         let ls = buf.lock_status;
 
-        match self.crypto.decrypt_into(&line.ciphertext, &line.nonce, &mut buf) {
+        match self
+            .crypto
+            .decrypt_into(&line.ciphertext, &line.nonce, &mut buf)
+        {
             Ok(()) => {
                 self.last_lock_status = Some(ls);
                 self.transient = Some(buf);
@@ -108,8 +119,16 @@ impl App {
                 } else {
                     format!(
                         "⚠ Revealed (pages {}{}). [Enter] edit  [Esc/↑↓] lock",
-                        if ls.mlocked { "mlock'd" } else { "NOT mlock'd – may swap!" },
-                        if !ls.dontdump { " | core-dump NOT suppressed" } else { "" },
+                        if ls.mlocked {
+                            "mlock'd"
+                        } else {
+                            "NOT mlock'd – may swap!"
+                        },
+                        if !ls.dontdump {
+                            " | core-dump NOT suppressed"
+                        } else {
+                            ""
+                        },
                     )
                 };
             }
@@ -131,12 +150,16 @@ impl App {
 
     /// Re-encrypt edited content, then seal.
     pub fn commit_edit(&mut self) {
-        if self.mode != Mode::Editing { return; }
+        if self.mode != Mode::Editing {
+            return;
+        }
 
         // ── Step 1: snapshot plaintext into a Zeroizing<Vec<u8>>.
         //    Zeroizing overwrites the Vec's bytes when it drops, so this
         //    temporary copy is short-lived and self-cleaning.
-        let snapshot: Option<Zeroizing<Vec<u8>>> = self.transient.as_ref()
+        let snapshot: Option<Zeroizing<Vec<u8>>> = self
+            .transient
+            .as_ref()
             .map(|b| Zeroizing::new(b.as_str().as_bytes().to_vec()));
 
         // ── Step 2: seal NOW – zeroize mlock'd buffer before any further
@@ -148,11 +171,16 @@ impl App {
             match self.crypto.encrypt(&bytes) {
                 Ok((ct, nonce)) => {
                     if self.cursor < self.vault.lines.len() {
-                        self.vault.lines[self.cursor] = EncryptedLine { nonce, ciphertext: ct };
+                        self.vault.lines[self.cursor] = EncryptedLine {
+                            nonce,
+                            ciphertext: ct,
+                        };
                     }
                     self.status = String::from("Re-encrypted. [s] to save to disk.");
                 }
-                Err(e) => { self.status = format!("Re-encryption failed: {e}"); }
+                Err(e) => {
+                    self.status = format!("Re-encryption failed: {e}");
+                }
             }
             // `bytes` dropped here → Zeroizing zeroes the Vec backing store.
         }
@@ -167,37 +195,51 @@ impl App {
 
     pub fn type_char(&mut self, ch: char) {
         if self.mode == Mode::Editing {
-            if let Some(b) = &mut self.transient { b.insert_char(ch); }
+            if let Some(b) = &mut self.transient {
+                b.insert_char(ch);
+            }
         }
     }
     pub fn backspace(&mut self) {
         if self.mode == Mode::Editing {
-            if let Some(b) = &mut self.transient { b.delete_before_cursor(); }
+            if let Some(b) = &mut self.transient {
+                b.delete_before_cursor();
+            }
         }
     }
     pub fn delete_fwd(&mut self) {
         if self.mode == Mode::Editing {
-            if let Some(b) = &mut self.transient { b.delete_at_cursor(); }
+            if let Some(b) = &mut self.transient {
+                b.delete_at_cursor();
+            }
         }
     }
     pub fn cursor_left(&mut self) {
         if self.mode == Mode::Editing {
-            if let Some(b) = &mut self.transient { b.move_left(); }
+            if let Some(b) = &mut self.transient {
+                b.move_left();
+            }
         }
     }
     pub fn cursor_right(&mut self) {
         if self.mode == Mode::Editing {
-            if let Some(b) = &mut self.transient { b.move_right(); }
+            if let Some(b) = &mut self.transient {
+                b.move_right();
+            }
         }
     }
     pub fn cursor_home(&mut self) {
         if self.mode == Mode::Editing {
-            if let Some(b) = &mut self.transient { b.move_home(); }
+            if let Some(b) = &mut self.transient {
+                b.move_home();
+            }
         }
     }
     pub fn cursor_end(&mut self) {
         if self.mode == Mode::Editing {
-            if let Some(b) = &mut self.transient { b.move_end(); }
+            if let Some(b) = &mut self.transient {
+                b.move_end();
+            }
         }
     }
 
@@ -206,16 +248,23 @@ impl App {
     pub fn add_entry(&mut self) {
         match self.crypto.encrypt(b"") {
             Ok((ct, nonce)) => {
-                self.vault.lines.push(EncryptedLine { nonce, ciphertext: ct });
+                self.vault.lines.push(EncryptedLine {
+                    nonce,
+                    ciphertext: ct,
+                });
                 self.cursor = self.vault.lines.len() - 1;
                 self.status = String::from("New entry added. [Space] reveal, [Enter] edit.");
             }
-            Err(e) => { self.status = format!("Failed to add entry: {e}"); }
+            Err(e) => {
+                self.status = format!("Failed to add entry: {e}");
+            }
         }
     }
 
     pub fn delete_entry(&mut self) {
-        if self.vault.lines.is_empty() { return; }
+        if self.vault.lines.is_empty() {
+            return;
+        }
         self.seal();
         self.vault.lines.remove(self.cursor);
         if self.cursor > 0 && self.cursor >= self.vault.lines.len() {
@@ -226,12 +275,14 @@ impl App {
 
     pub fn save(&mut self) {
         match self.vault.save(&self.path) {
-            Ok(_)  => self.status = String::from("Vault saved."),
+            Ok(_) => self.status = String::from("Vault saved."),
             Err(e) => self.status = format!("Save failed: {e}"),
         }
     }
 
-    pub fn clear_transient(&mut self) { self.seal(); }
+    pub fn clear_transient(&mut self) {
+        self.seal();
+    }
 
     // ── Internal ──────────────────────────────────────────────────────────
 
@@ -239,8 +290,8 @@ impl App {
     /// to Locked.  Called before EVERY mode transition.
     fn seal(&mut self) {
         if let Some(mut buf) = self.transient.take() {
-            buf.zeroize();   // volatile 0-fill
-            drop(buf);       // munlock + DONTDUMP pages freed
+            buf.zeroize(); // volatile 0-fill
+            drop(buf); // munlock + DONTDUMP pages freed
         }
         self.mode = Mode::Locked;
     }

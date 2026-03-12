@@ -10,14 +10,15 @@ mod ui;
 
 use std::{
     io::{self, stdout, Write},
-    time::Duration,
     path::Path,
+    time::Duration,
 };
+
+use std::path::PathBuf;
 
 use crossterm::{
     event::{
-        self, DisableMouseCapture, EnableMouseCapture,
-        Event, KeyCode, KeyEventKind, KeyModifiers,
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -54,8 +55,10 @@ fn harden_process() {
     let ret = unsafe {
         libc::prctl(
             libc::PR_SET_DUMPABLE,
-            0,   // not dumpable
-            0, 0, 0,
+            0, // not dumpable
+            0,
+            0,
+            0,
         )
     };
     if ret != 0 {
@@ -101,8 +104,6 @@ fn read_password(prompt: &str) -> Zeroizing<String> {
     pw
 }
 
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  Vault setup (load-or-create)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,7 +122,8 @@ fn setup_vault(path: &Path) -> Result<(Vault, CryptoEngine), String> {
         // Verify password: try to decrypt the first entry (if present).
         // `decrypt_verify` uses a temporary SecureBuffer; no Vec<u8> created.
         if let Some(first) = vault.lines.first() {
-            crypto.decrypt_verify(&first.ciphertext, &first.nonce)
+            crypto
+                .decrypt_verify(&first.ciphertext, &first.nonce)
                 .map_err(|_| "Wrong password or corrupted vault.".to_string())?;
         }
 
@@ -166,7 +168,9 @@ fn run(mut app: App) -> io::Result<()> {
     'main: loop {
         term.draw(|f| ui::draw(f, &app))?;
 
-        if !event::poll(Duration::from_millis(100))? { continue; }
+        if !event::poll(Duration::from_millis(100))? {
+            continue;
+        }
 
         let key = match event::read()? {
             Event::Key(k) if k.kind == KeyEventKind::Press => k,
@@ -180,32 +184,32 @@ fn run(mut app: App) -> io::Result<()> {
         match app.mode {
             Mode::Locked => match key.code {
                 KeyCode::Char('q') | KeyCode::Char('Q') => break 'main,
-                KeyCode::Up              => app.move_up(),
-                KeyCode::Down            => app.move_down(),
-                KeyCode::Char(' ')       => app.reveal(),
-                KeyCode::Char('n')                 => app.add_entry(),
+                KeyCode::Up => app.move_up(),
+                KeyCode::Down => app.move_down(),
+                KeyCode::Char(' ') => app.reveal(),
+                KeyCode::Char('n') => app.add_entry(),
                 KeyCode::Char('d') if key.modifiers.is_empty() => app.delete_entry(),
-                KeyCode::Char('s')                 => app.save(),
+                KeyCode::Char('s') => app.save(),
                 _ => {}
             },
             Mode::Revealed => match key.code {
-                KeyCode::Up              => app.move_up(),
-                KeyCode::Down            => app.move_down(),
-                KeyCode::Esc             => app.discard(),
-                KeyCode::Enter                     => app.begin_edit(),
-                KeyCode::Char('s')                 => app.save(),
+                KeyCode::Up => app.move_up(),
+                KeyCode::Down => app.move_down(),
+                KeyCode::Esc => app.discard(),
+                KeyCode::Enter => app.begin_edit(),
+                KeyCode::Char('s') => app.save(),
                 _ => {}
             },
             Mode::Editing => match key.code {
-                KeyCode::Esc   => app.commit_edit(),
-                KeyCode::Up    => app.move_up(),
-                KeyCode::Down  => app.move_down(),
-                KeyCode::Left      => app.cursor_left(),
-                KeyCode::Right     => app.cursor_right(),
-                KeyCode::Home      => app.cursor_home(),
-                KeyCode::End       => app.cursor_end(),
+                KeyCode::Esc => app.commit_edit(),
+                KeyCode::Up => app.move_up(),
+                KeyCode::Down => app.move_down(),
+                KeyCode::Left => app.cursor_left(),
+                KeyCode::Right => app.cursor_right(),
+                KeyCode::Home => app.cursor_home(),
+                KeyCode::End => app.cursor_end(),
                 KeyCode::Backspace => app.backspace(),
-                KeyCode::Delete    => app.delete_fwd(),
+                KeyCode::Delete => app.delete_fwd(),
                 KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                     app.type_char(c);
                 }
@@ -217,7 +221,11 @@ fn run(mut app: App) -> io::Result<()> {
     app.clear_transient();
 
     disable_raw_mode()?;
-    execute!(term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        term.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     term.show_cursor()?;
     Ok(())
 }
@@ -233,11 +241,10 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("\n  Usage: secure-vault <vault-file>\n");
+        eprintln!("\n  Usage: qrptonote <vault-file>\n");
         std::process::exit(1);
     }
-
-    let path = Path::from(&args[1]);
+    let path = PathBuf::from(&args[1]);
 
     // In main(), after the banner, before setup_vault():
     if !path.exists() {
@@ -249,7 +256,7 @@ fn main() {
 
     println!();
     println!("  ╔════════════════════════════════════════════════╗");
-    println!("  ║           🔐  Secure Vault  v0.2               ║");
+    println!("  ║           🔐  Qrpto:note  v0.2                 ║");
     println!("  ║  AES-256-GCM · Argon2id · mlock · MADV_DONTDUMP║");
     println!("  ╚════════════════════════════════════════════════╝");
     println!();

@@ -6,7 +6,7 @@
 //  ═══════════
 //  Offset  Size   Field
 //  ──────  ─────  ──────────────────────────────────────────────────────────
-//     0      4    Magic bytes  "SVT1"  (Secure Vault, format version 1)
+//     0      4    Magic bytes  "SVT1"  (Qrpto:note vault, format version 1)
 //     4     32    Argon2id salt  (random, one per vault, never changes)
 //    36      4    Entry count  (u32 little-endian)
 //    40      …    Entry records (repeated `count` times):
@@ -28,13 +28,13 @@ const MAGIC: &[u8; 4] = b"SVT1";
 /// One encrypted line (nonce + ciphertext-with-tag).
 #[derive(Clone, Debug)]
 pub struct EncryptedLine {
-    pub nonce:      [u8; 12],
+    pub nonce: [u8; 12],
     pub ciphertext: Vec<u8>,
 }
 
 /// The full vault: salt + ordered list of encrypted lines.
 pub struct Vault {
-    pub salt:  [u8; 32],
+    pub salt: [u8; 32],
     pub lines: Vec<EncryptedLine>,
 }
 
@@ -42,7 +42,10 @@ pub struct Vault {
 
 impl Vault {
     pub fn new_empty(salt: [u8; 32]) -> Self {
-        Vault { salt, lines: Vec::new() }
+        Vault {
+            salt,
+            lines: Vec::new(),
+        }
     }
 
     // ── Persistence ──────────────────────────────────────────────────────
@@ -71,7 +74,7 @@ impl Vault {
         if data.len() < 4 || &data[p..p + 4] != MAGIC {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                "Not a Secure Vault file (bad magic bytes)",
+                "Not a Qrpto:note vault file (bad magic bytes)",
             ));
         }
         p += 4;
@@ -124,5 +127,8 @@ impl Vault {
 }
 
 fn short_file() -> io::Error {
-    io::Error::new(io::ErrorKind::InvalidData, "File is too short to be a valid vault")
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        "File is too short to be a valid vault",
+    )
 }
