@@ -20,8 +20,7 @@ jobs:
   analyze:
     name: Static Analysis
     runs-on: ubuntu-latest
-    steps:
-      - 
+    steps: 
       - name: Install Clippy
         run: rustup component add clippy
       - name: Run Clippy (Security focus)
