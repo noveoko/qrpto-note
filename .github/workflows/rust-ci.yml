@@ -24,6 +24,23 @@ jobs:
       - name: Clippy Lint
         run: cargo clippy -- -D warnings
 
+      # 🔐 Dependency vulnerability scan
+      - name: Security Audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+
+      - name: Cargo Deny
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check advisories
+
+      # 🧨 Detect unsafe Rust usage
+      - name: Unsafe Code Scan
+        run: |
+          cargo install cargo-geiger --locked
+          cargo geiger
+
       - name: Run Tests
         run: cargo test
 
