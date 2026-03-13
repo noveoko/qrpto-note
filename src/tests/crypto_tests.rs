@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::crypto::CryptoEngine; // Or use crate::CryptoEngine; if it's exported at the root
     use crate::secure_buf::SecureBuffer;
 
     fn setup_engine() -> CryptoEngine {
@@ -16,12 +16,16 @@ mod tests {
         let engine = setup_engine();
         let plaintext = b"correct horse battery staple";
 
-        let (ciphertext, nonce) = engine.encrypt(plaintext).expect("TODO: verify this is safe");
+        let (ciphertext, nonce) = engine
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
 
         let mut buf = SecureBuffer::new();
-        engine.decrypt_into(&ciphertext, &nonce, &mut buf).expect("TODO: verify this is safe");
+        engine
+            .decrypt_into(&ciphertext, &nonce, &mut buf)
+            .expect("TODO: verify this is safe");
 
-        assert_eq!(&buf[..plaintext.len()], plaintext);
+        assert_eq!(&buf.as_slice()[..plaintext.len()], plaintext);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -32,7 +36,9 @@ mod tests {
         let engine1 = setup_engine();
         let plaintext = b"top secret";
 
-        let (ciphertext, nonce) = engine1.encrypt(plaintext).expect("TODO: verify this is safe");
+        let (ciphertext, nonce) = engine1
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
 
         let wrong_key = [99u8; 32];
         let engine2 = CryptoEngine::from_key(&wrong_key);
@@ -51,7 +57,9 @@ mod tests {
         let engine = setup_engine();
         let plaintext = b"attack at dawn";
 
-        let (mut ciphertext, nonce) = engine.encrypt(plaintext).expect("TODO: verify this is safe");
+        let (mut ciphertext, nonce) = engine
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
 
         ciphertext[0] ^= 0x01;
 
@@ -69,8 +77,12 @@ mod tests {
         let engine = setup_engine();
         let plaintext = b"same plaintext";
 
-        let (_, nonce1) = engine.encrypt(plaintext).expect("TODO: verify this is safe");
-        let (_, nonce2) = engine.encrypt(plaintext).expect("TODO: verify this is safe");
+        let (_, nonce1) = engine
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
+        let (_, nonce2) = engine
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
 
         assert_ne!(nonce1, nonce2);
     }
@@ -85,7 +97,9 @@ mod tests {
         let (ciphertext, nonce) = engine.encrypt(b"").expect("TODO: verify this is safe");
 
         let mut buf = SecureBuffer::new();
-        engine.decrypt_into(&ciphertext, &nonce, &mut buf).expect("TODO: verify this is safe");
+        engine
+            .decrypt_into(&ciphertext, &nonce, &mut buf)
+            .expect("TODO: verify this is safe");
 
         assert_eq!(buf.len, 0);
     }
@@ -100,7 +114,9 @@ mod tests {
         let engine = setup_engine();
         let plaintext = b"nonce test";
 
-        let (ciphertext, mut nonce) = engine.encrypt(plaintext).expect("TODO: verify this is safe");
+        let (ciphertext, mut nonce) = engine
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
         nonce[0] ^= 0xFF;
 
         let mut buf = SecureBuffer::new();
@@ -115,8 +131,12 @@ mod tests {
         let engine = setup_engine();
         let plaintext = b"identical input";
 
-        let (ct1, _) = engine.encrypt(plaintext).expect("TODO: verify this is safe");
-        let (ct2, _) = engine.encrypt(plaintext).expect("TODO: verify this is safe");
+        let (ct1, _) = engine
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
+        let (ct2, _) = engine
+            .encrypt(plaintext)
+            .expect("TODO: verify this is safe");
 
         assert_ne!(ct1, ct2);
     }
@@ -128,12 +148,16 @@ mod tests {
 
         let plaintext = vec![7u8; 3000];
 
-        let (ciphertext, nonce) = engine.encrypt(&plaintext).expect("TODO: verify this is safe");
+        let (ciphertext, nonce) = engine
+            .encrypt(&plaintext)
+            .expect("TODO: verify this is safe");
 
         let mut buf = SecureBuffer::new();
-        engine.decrypt_into(&ciphertext, &nonce, &mut buf).expect("TODO: verify this is safe");
+        engine
+            .decrypt_into(&ciphertext, &nonce, &mut buf)
+            .expect("TODO: verify this is safe");
 
-        assert_eq!(&buf[..plaintext.len()], &plaintext[..]);
+        assert_eq!(&buf.as_slice()[..plaintext.len()], &plaintext[..]);
     }
 
     // Ciphertext exceeding buffer should error

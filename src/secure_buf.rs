@@ -135,6 +135,12 @@ impl SecureBuffer {
         }
     }
 
+    #[cfg(test)]
+    #[inline]
+    pub fn as_slice(&self) -> &[u8] {
+        self.as_ref()
+    }
+
     // ── Content management ───────────────────────────────────────────────
 
     /// View the current content as a UTF-8 &str.

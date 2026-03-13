@@ -6,11 +6,12 @@
                               // ─────────────────────────────────────────────────────────────────────────────
                               //  main.rs  –  Entry point: prctl hardening → password → vault → TUI loop
                               // ─────────────────────────────────────────────────────────────────────────────
-
 mod app;
 mod crypto;
 mod secure_buf;
 mod storage;
+#[cfg(test)]
+mod tests;
 mod ui;
 
 use crossterm::{
